@@ -47,12 +47,11 @@
                   <li><a href="${contextPath}/usuarios.do"><i class="fa fa-user"></i> Usuarios</a></li>
                   <li><a href="${contextPath}/moras.do"><i class="fa fa-clock-o"></i> Moras</a></li>
                   <li><a href="${contextPath}/tarifas.do"><i class="fa fa-dollar"></i> Tarifas</a></li>
-                  <li><a href="${contextPath}/admin_prestamos.do"><i class="fa fa-exchange"></i> Préstamos</a></li>
                 <%-- </c:if> --%>
                 <c:if test="${tipoUsuario == 'profesor' || tipoUsuario == 'estudiante'}">
-                  <li><a href="${contextPath}/prestamos.do"><i class="fa fa-exchange"></i> Préstamos</a></li>
                 </c:if>
                 <c:if test="${not empty tipoUsuario}">
+                  <li><a href="${contextPath}/prestamos.do"><i class="fa fa-exchange"></i> Préstamos</a></li>
                   <li><a href="${contextPath}/logout.do"><i class="fa fa-sign-out"></i> Cerrar sesión</a></li>
                 </c:if>
             </ul>

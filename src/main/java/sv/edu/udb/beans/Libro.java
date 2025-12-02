@@ -7,6 +7,8 @@ public class Libro extends Material {
     
     private String editorial;
     private int idEditorial;
+    private int idGenero;
+    private String genero;
     private String isbn;
     private List<Integer> idsAutores;
 
@@ -16,9 +18,10 @@ public class Libro extends Material {
 
     public Libro(int idMaterial, TipoMaterial tipoMaterial, String titulo, String ubicacion,
                  int cantidadTotal, int cantidadDisponible,
-                 int cantidadPrestada, int cantidadDaniada, int idEditorial, String isbn) {
+                 int cantidadPrestada, int cantidadDaniada, int idEditorial, int idGenero, String isbn) {
         super(idMaterial, tipoMaterial, titulo, ubicacion, cantidadTotal, cantidadDisponible, cantidadPrestada, cantidadDaniada);
         this.idEditorial = idEditorial;
+        this.idGenero = idGenero;
         this.isbn = isbn;
         this.idsAutores = new ArrayList<>();
     }
@@ -60,5 +63,21 @@ public class Libro extends Material {
             this.idsAutores = new ArrayList<>();
         }
         this.idsAutores.add(idAutor);
+    }
+
+    public int getIdGenero() {
+        return idGenero;
+    }
+
+    public void setIdGenero(int idGenero) {
+        this.idGenero = idGenero;
+    }
+
+    public String getGenero() {
+        return genero;
+    }
+
+    public void setGenero(String genero) {
+        this.genero = genero;
     }
 }
