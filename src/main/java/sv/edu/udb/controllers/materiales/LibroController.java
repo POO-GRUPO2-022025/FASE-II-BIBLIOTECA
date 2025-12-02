@@ -12,6 +12,7 @@ import sv.edu.udb.beans.Libro;
 import sv.edu.udb.beans.Material.TipoMaterial;
 import sv.edu.udb.model.AutorModel;
 import sv.edu.udb.model.EditorialModel;
+import sv.edu.udb.model.GeneroModel;
 import sv.edu.udb.model.MaterialModel;
 import sv.edu.udb.model.materiales.LibroModel;
 
@@ -33,9 +34,11 @@ public class LibroController {
             throws ServletException, IOException {
         AutorModel autorModel = new AutorModel();
         EditorialModel editorialModel = new EditorialModel();
+        GeneroModel generoModel = new GeneroModel();
         
         request.setAttribute("listaAutores", autorModel.listarTodos());
         request.setAttribute("listaEditoriales", editorialModel.listarTodas());
+        request.setAttribute("listaGeneros", generoModel.listarTodas());
         request.getRequestDispatcher("/materiales/nuevoLibro.jsp").forward(request, response);
     }
     
@@ -66,6 +69,7 @@ public class LibroController {
         
         int cantidadTotal = 0;
         int editorialId = 0;
+        int generoId = 0;
         
         try {
             cantidadTotal = Integer.parseInt(request.getParameter("cantidadTotal"));
@@ -80,6 +84,12 @@ public class LibroController {
             editorialId = Integer.parseInt(request.getParameter("editorial"));
         } catch (NumberFormatException e) {
             listaErrores.add("Debe seleccionar una editorial válida.");
+        }
+        
+        try {
+            generoId = Integer.parseInt(request.getParameter("genero"));
+        } catch (NumberFormatException e) {
+            listaErrores.add("Debe seleccionar un género válido.");
         }
         
         if (!listaErrores.isEmpty()) {
@@ -104,6 +114,7 @@ public class LibroController {
         libro.setCantidadDaniada(0);
         libro.setIsbn(isbn.trim());
         libro.setIdEditorial(editorialId);
+        libro.setIdGenero(generoId);
         
         // Convertir autores a lista de IDs
         List<Integer> listaAutoresIds = new ArrayList<>();
@@ -148,8 +159,10 @@ public class LibroController {
                 // Cargar listas necesarias para el formulario
                 AutorModel autorModel = new AutorModel();
                 EditorialModel editorialModel = new EditorialModel();
+                GeneroModel generoModel = new GeneroModel();
                 request.setAttribute("listaAutores", autorModel.listarTodos());
                 request.setAttribute("listaEditoriales", editorialModel.listarTodas());
+                request.setAttribute("listaGeneros", generoModel.listarTodas());
                 
                 request.getRequestDispatcher("/materiales/editarLibro.jsp").forward(request, response);
             } else {
@@ -197,6 +210,7 @@ public class LibroController {
         int id = 0;
         int cantidadTotal = 0;
         int editorialId = 0;
+        int generoId = 0;
         
         try {
             id = Integer.parseInt(idStr);
@@ -219,6 +233,12 @@ public class LibroController {
             listaErrores.add("Debe seleccionar una editorial válida.");
         }
         
+        try {
+            generoId = Integer.parseInt(request.getParameter("genero"));
+        } catch (NumberFormatException e) {
+            listaErrores.add("Debe seleccionar un género válido.");
+        }
+        
         if (!listaErrores.isEmpty()) {
             request.setAttribute("listaErrores", listaErrores);
             try {
@@ -238,6 +258,7 @@ public class LibroController {
         libro.setCantidadTotal(cantidadTotal);
         libro.setIsbn(isbn.trim());
         libro.setIdEditorial(editorialId);
+        libro.setIdGenero(generoId);
         
         // Convertir autores a lista de IDs
         List<Integer> listaAutoresIds = new ArrayList<>();

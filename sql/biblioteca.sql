@@ -34,7 +34,7 @@ CREATE TABLE editoriales
     pais         VARCHAR(100)
 );
 
-CREATE TABLE generos
+CREATE TABLE genero
 (
     id_genero INT AUTO_INCREMENT PRIMARY KEY,
     nombre    VARCHAR(100) NOT NULL UNIQUE,
@@ -57,7 +57,7 @@ CREATE TABLE libros
     isbn        VARCHAR(20),
     FOREIGN KEY (id_material) REFERENCES materiales (id_material) ON DELETE CASCADE,
 	FOREIGN KEY (id_editorial) REFERENCES editoriales (id_editorial) ON DELETE SET NULL,
-    FOREIGN KEY (id_genero) REFERENCES generos (id_genero) ON DELETE SET NULL
+    FOREIGN KEY (id_genero) REFERENCES genero (id_genero) ON DELETE SET NULL
 );
 
 CREATE TABLE libro_autor
@@ -126,27 +126,27 @@ CREATE TABLE prestamos
 -- Insertar usuarios (password: "123456" para todos)
 INSERT INTO usuarios (nombre, tipo_usuario, correo, password) VALUES
 ('Admin Principal', 'Encargado', 'admin@biblioteca.com', '123456'),
-('Carlos Rodríguez', 'Profesor', 'carlos.rodriguez@udb.edu.sv', '123456'),
-('Juan Pérez', 'Alumno', 'juan.perez@estudiante.udb.edu.sv', '123456'),
-('María González', 'Profesor', 'maria.gonzalez@udb.edu.sv', '123456'),
-('Ana Martínez', 'Alumno', 'ana.martinez@estudiante.udb.edu.sv', '123456'),
-('Luis Hernández', 'Alumno', 'luis.hernandez@estudiante.udb.edu.sv', '123456');
+('Carlos Rodriguez', 'Profesor', 'carlos.rodriguez@udb.edu.sv', '123456'),
+('Juan Perez', 'Alumno', 'juan.perez@estudiante.udb.edu.sv', '123456'),
+('Maria Gonzalez', 'Profesor', 'maria.gonzalez@udb.edu.sv', '123456'),
+('Ana Martinez', 'Alumno', 'ana.martinez@estudiante.udb.edu.sv', '123456'),
+('Luis Hernandez', 'Alumno', 'luis.hernandez@estudiante.udb.edu.sv', '123456');
 
 -- Insertar editoriales
 INSERT INTO editoriales (nombre, pais) VALUES
 ('Pearson Education', 'Estados Unidos'),
 ('McGraw-Hill', 'Estados Unidos'),
 ('O''Reilly Media', 'Estados Unidos'),
-('Editorial Santillana', 'España'),
-('Alfaomega', 'México');
+('Editorial Santillana', 'Espana'),
+('Alfaomega', 'Mexico');
 
--- Insertar géneros
-INSERT INTO generos (nombre, descripcion) VALUES
-('Programación', 'Libros sobre desarrollo de software y lenguajes de programación'),
-('Base de Datos', 'Libros sobre sistemas de gestión de bases de datos'),
+-- Insertar generos
+INSERT INTO genero (nombre, descripcion) VALUES
+('Programacion', 'Libros sobre desarrollo de software y lenguajes de programacion'),
+('Base de Datos', 'Libros sobre sistemas de gestion de bases de datos'),
 ('Redes', 'Libros sobre redes de computadoras y telecomunicaciones'),
-('Ciencia Ficción', 'Literatura de ciencia ficción'),
-('Ingeniería de Software', 'Libros sobre metodologías y procesos de desarrollo');
+('Ciencia Ficcion', 'Literatura de ciencia ficcion'),
+('Ingenieria de Software', 'Libros sobre metodologias y procesos de desarrollo');
 
 -- Insertar autores
 INSERT INTO autores (nombre, apellidos, pais) VALUES
@@ -210,49 +210,49 @@ INSERT INTO audiovisuales (id_material, formato, duracion) VALUES
 
 -- Insertar materiales (Otros documentos)
 INSERT INTO materiales (tipo_material, titulo, ubicacion, cantidad_total, cantidad_disponible) VALUES
-('Otro', 'Tesis: Optimización de Consultas SQL', 'Estante F-1', 1, 1),
-('Otro', 'Manual de Configuración de Redes', 'Estante F-2', 2, 2);
+('Otro', 'Tesis: Optimizacion de Consultas SQL', 'Estante F-1', 1, 1),
+('Otro', 'Manual de Configuracion de Redes', 'Estante F-2', 2, 2);
 
 INSERT INTO otros_documentos (id_material, descripcion) VALUES
-(13, 'Tesis doctoral sobre optimización de consultas en bases de datos relacionales'),
-(14, 'Manual técnico para configuración de redes empresariales');
+(13, 'Tesis doctoral sobre optimizacion de consultas en bases de datos relacionales'),
+(14, 'Manual tecnico para configuracion de redes empresariales');
 
--- Insertar tarifas de mora (año 2025)
+-- Insertar tarifas de mora (ano 2025)
 INSERT INTO moras (anio_aplicable, tipo_usuario, tarifa_diaria) VALUES
 (2025, 'Alumno', 1.50),
 (2025, 'Profesor', 2.00);
 
--- Insertar préstamos de ejemplo
+-- Insertar prestamos de ejemplo
 
--- Préstamos PENDIENTES (esperando aprobación)
+-- Prestamos PENDIENTES (esperando aprobacion)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, estado) VALUES
 (3, 3, 1, 0.00, CURDATE(), NULL, 'Pendiente'), -- Juan solicita Core Java
 (5, 7, 1, 0.00, CURDATE(), NULL, 'Pendiente'); -- Ana solicita Computer Networks
 
--- Préstamos EN_CURSO (sin retraso)
+-- Prestamos EN_CURSO (sin retraso)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, estado) VALUES
-(2, 1, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 3 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'En_Curso'), -- Carlos con Java Complete (10 días, 3 usados)
-(3, 4, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'En_Curso'); -- Juan con Clean Code (5 días, 2 usados)
+(2, 1, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 3 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'En_Curso'), -- Carlos con Java Complete (10 dias, 3 usados)
+(3, 4, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'En_Curso'); -- Juan con Clean Code (5 dias, 2 usados)
 
--- Préstamos EN_CURSO (CON RETRASO - para probar cálculo de mora)
+-- Prestamos EN_CURSO (CON RETRASO - para probar calculo de mora)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, estado) VALUES
-(5, 2, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 10 DAY), DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'En_Curso'), -- Ana con Effective Java (3 días de retraso = $4.50)
-(4, 5, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 12 DAY), DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'En_Curso'); -- María con Design Patterns (2 días retraso = $4.00)
+(5, 2, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 10 DAY), DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'En_Curso'), -- Ana con Effective Java (3 dias de retraso = $4.50)
+(4, 5, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 12 DAY), DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'En_Curso'); -- Maria con Design Patterns (2 dias retraso = $4.00)
 
--- Préstamos DEVUELTOS (sin mora)
+-- Prestamos DEVUELTOS (sin mora)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, fecha_devolucion, estado) VALUES
-(3, 6, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 15 DAY), DATE_SUB(CURDATE(), INTERVAL 5 DAY), DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'Devuelto'), -- Juan devolvió Refactoring a tiempo
-(2, 1, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 20 DAY), DATE_SUB(CURDATE(), INTERVAL 10 DAY), DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'Devuelto'); -- Carlos devolvió Java Complete a tiempo
+(3, 6, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 15 DAY), DATE_SUB(CURDATE(), INTERVAL 5 DAY), DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'Devuelto'), -- Juan devolvio Refactoring a tiempo
+(2, 1, 2, 0.00, DATE_SUB(CURDATE(), INTERVAL 20 DAY), DATE_SUB(CURDATE(), INTERVAL 10 DAY), DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'Devuelto'); -- Carlos devolvio Java Complete a tiempo
 
--- Préstamos DEVUELTOS (con mora pagada completamente)
+-- Prestamos DEVUELTOS (con mora pagada completamente)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, fecha_devolucion, estado) VALUES
-(5, 4, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 25 DAY), DATE_SUB(CURDATE(), INTERVAL 15 DAY), DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'Devuelto'); -- Ana devolvió Clean Code con 5 días de retraso ($7.50) y pagó todo
+(5, 4, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 25 DAY), DATE_SUB(CURDATE(), INTERVAL 15 DAY), DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'Devuelto'); -- Ana devolvio Clean Code con 5 dias de retraso ($7.50) y pago todo
 
--- Préstamos DEVUELTOS (con mora pendiente de pago)
+-- Prestamos DEVUELTOS (con mora pendiente de pago)
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, fecha_devolucion, estado) VALUES
-(6, 5, 1, 6.00, DATE_SUB(CURDATE(), INTERVAL 18 DAY), DATE_SUB(CURDATE(), INTERVAL 8 DAY), DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'Devuelto'); -- Luis devolvió Design Patterns con 4 días retraso ($6.00) sin pagar
+(6, 5, 1, 6.00, DATE_SUB(CURDATE(), INTERVAL 18 DAY), DATE_SUB(CURDATE(), INTERVAL 8 DAY), DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'Devuelto'); -- Luis devolvio Design Patterns con 4 dias retraso ($6.00) sin pagar
 
--- Préstamos DENEGADOS
+-- Prestamos DENEGADOS
 INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prestamo, fecha_estimada, estado) VALUES
 (6, 2, 1, 0.00, DATE_SUB(CURDATE(), INTERVAL 5 DAY), NULL, 'Denegado'); -- Solicitud de Luis denegada
 
@@ -261,22 +261,22 @@ INSERT INTO prestamos (id_usuario, id_material, id_mora, mora_total, fecha_prest
 -- ========================================
 -- Usuarios:
 --   - 1 Administrador (admin@biblioteca.com)
---   - 2 Profesores (límite: 6 préstamos)
---   - 3 Alumnos (límite: 3 préstamos)
+--   - 2 Profesores (limite: 6 prestamos)
+--   - 3 Alumnos (limite: 3 prestamos)
 --
 -- Materiales:
---   - 7 Libros (varios autores y géneros)
+--   - 7 Libros (varios autores y generos)
 --   - 3 Revistas
 --   - 2 Audiovisuales
 --   - 2 Otros documentos
 --
--- Préstamos para probar:
+-- Prestamos para probar:
 --   - 2 PENDIENTES (aprobar/denegar)
 --   - 4 EN_CURSO (2 sin retraso, 2 con retraso para calcular mora)
 --   - 4 DEVUELTOS (2 sin mora, 1 con mora pagada, 1 con mora pendiente)
 --   - 1 DENEGADO
 --
 -- Tarifas de mora 2025:
---   - Alumno: $1.50/día
---   - Profesor: $2.00/día
+--   - Alumno: $1.50/dia
+--   - Profesor: $2.00/dia
 -- ========================================

@@ -15,16 +15,18 @@ import java.util.List;
  */
 public class LibroModel {
     
-    private final String SQL_INSERT = "INSERT INTO libros(id_material, id_editorial, isbn) VALUES(?,?,?)";
-    private final String SQL_UPDATE = "UPDATE libros SET id_editorial=?, isbn=? WHERE id_material=?";
+    private final String SQL_INSERT = "INSERT INTO libros(id_material, id_editorial, id_genero, isbn) VALUES(?,?,?,?)";
+    private final String SQL_UPDATE = "UPDATE libros SET id_editorial=?, id_genero=?, isbn=? WHERE id_material=?";
     private final String SQL_DELETE = "DELETE FROM libros WHERE id_material=?";
     private final String SQL_SELECT = "SELECT * FROM libros WHERE id_material=?";
-    private final String SQL_SELECT_ALL = "SELECT l.id_material, l.id_editorial, l.isbn, e.nombre AS editorial_nombre, " +
+    private final String SQL_SELECT_ALL = "SELECT l.id_material, l.id_editorial, l.id_genero, l.isbn, e.nombre AS editorial_nombre, " +
+            "g.nombre AS genero_nombre, " +
             "m.tipo_material, m.titulo, m.ubicacion, m.cantidad_total, m.cantidad_disponible, " +
             "m.cantidad_prestados, m.cantidad_daniado " +
             "FROM libros l " +
             "INNER JOIN materiales m ON l.id_material = m.id_material " +
             "LEFT JOIN editoriales e ON l.id_editorial = e.id_editorial " +
+            "LEFT JOIN genero g ON l.id_genero = g.id_genero " +
             "ORDER BY l.id_material";
 
     /**
@@ -49,7 +51,8 @@ public class LibroModel {
             stmt = conn.prepareStatement(SQL_INSERT);
             stmt.setInt(1, baseMaterial.getIdMaterial());
             stmt.setInt(2, libro.getIdEditorial());
-            stmt.setString(3, libro.getIsbn());
+            stmt.setInt(3, libro.getIdGenero());
+            stmt.setString(4, libro.getIsbn());
             stmt.executeUpdate();
             
             // Paso 3: Insertar relaciones libro-autor
@@ -74,6 +77,7 @@ public class LibroModel {
                 nuevoLibro.setCantidadPrestada(baseMaterial.getCantidadPrestada());
                 nuevoLibro.setCantidadDaniada(baseMaterial.getCantidadDaniada());
                 nuevoLibro.setIdEditorial(rs.getInt("id_editorial"));
+                nuevoLibro.setIdGenero(rs.getInt("id_genero"));
                 nuevoLibro.setIsbn(rs.getString("isbn"));
                 nuevoLibro.setIdsAutores(libro.getIdsAutores());
             }
@@ -101,8 +105,9 @@ public class LibroModel {
             conn = Conexion.getConexion();
             stmt = conn.prepareStatement(SQL_UPDATE);
             stmt.setInt(1, libro.getIdEditorial());
-            stmt.setString(2, libro.getIsbn());
-            stmt.setInt(3, libro.getIdMaterial());
+            stmt.setInt(2, libro.getIdGenero());
+            stmt.setString(3, libro.getIsbn());
+            stmt.setInt(4, libro.getIdMaterial());
             
             int filas = stmt.executeUpdate();
             resultado = filas > 0;
@@ -188,6 +193,7 @@ public class LibroModel {
                 libro.setCantidadPrestada(baseMaterial.getCantidadPrestada());
                 libro.setCantidadDaniada(baseMaterial.getCantidadDaniada());
                 libro.setIdEditorial(rs.getInt("id_editorial"));
+                libro.setIdGenero(rs.getInt("id_genero"));
                 libro.setIsbn(rs.getString("isbn"));
                 
                 // Cargar autores
@@ -234,6 +240,8 @@ public class LibroModel {
                 libro.setCantidadPrestada(rs.getInt("cantidad_prestados"));
                 libro.setCantidadDaniada(rs.getInt("cantidad_daniado"));
                 libro.setIdEditorial(rs.getInt("id_editorial"));
+                libro.setIdGenero(rs.getInt("id_genero"));
+                libro.setGenero(rs.getString("genero_nombre"));
                 libro.setIsbn(rs.getString("isbn"));
                 
                 // Cargar autores

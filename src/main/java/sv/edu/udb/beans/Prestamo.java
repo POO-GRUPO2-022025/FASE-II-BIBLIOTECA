@@ -28,6 +28,7 @@ public class Prestamo implements Serializable {
     private String nombreUsuario;
     private String tituloMaterial;
     private String tipoMaterial;
+    private String generoNombre;
 
     public Prestamo() {}
 
@@ -139,5 +140,13 @@ public class Prestamo implements Serializable {
 
     public void setTipoMaterial(String tipoMaterial) {
         this.tipoMaterial = tipoMaterial;
+    }
+
+    public String getGeneroNombre() {
+        return generoNombre;
+    }
+
+    public void setGeneroNombre(String generoNombre) {
+        this.generoNombre = generoNombre;
     }
 }

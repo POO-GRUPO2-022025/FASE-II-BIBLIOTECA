@@ -168,7 +168,12 @@
                                             <c:if test="${esAdmin}">
                                                 <td>${prestamo.nombreUsuario}</td>
                                             </c:if>
-                                            <td>${prestamo.tituloMaterial}</td>
+                                            <td>
+                                                ${prestamo.tituloMaterial}
+                                                <c:if test="${prestamo.tipoMaterial == 'Libro' && not empty prestamo.generoNombre}">
+                                                    <br><small class="text-muted">Género: ${prestamo.generoNombre}</small>
+                                                </c:if>
+                                            </td>
                                             <td><span class="badge badge-info">${prestamo.tipoMaterial}</span></td>
                                             <td><fmt:formatDate value="${prestamo.fechaPrestamo}" pattern="dd/MM/yyyy"/></td>
                                             <td>

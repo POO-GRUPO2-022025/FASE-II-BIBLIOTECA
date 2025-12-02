@@ -66,6 +66,21 @@
                         </div>
                         
                         <div class="form-group">
+                            <label for="genero" class="col-sm-3 control-label">Género *</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" id="genero" name="genero" required>
+                                    <option value="">-- Seleccione un género --</option>
+                                    <c:forEach items="${listaGeneros}" var="genero">
+                                        <option value="${genero.idGenero}" 
+                                            ${genero.idGenero == idGenero ? 'selected' : ''}>
+                                            ${genero.nombre}
+                                        </option>
+                                    </c:forEach>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label class="col-sm-3 control-label">Autores *</label>
                             <div class="col-sm-9">
                                 <div style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 4px;">

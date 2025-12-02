@@ -206,6 +206,13 @@ public class PrestamoService {
             
             // Guardar en la base de datos
             if (prestamoModel.update(prestamo)) {
+                // Incrementar cantidad prestada del material
+                Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
+                if (material != null) {
+                    material.setCantidadPrestada(material.getCantidadPrestada() + 1);
+                    materialModel.actualizar(material);
+                }
+                
                 resultado.put("success", true);
                 resultado.put("mensaje", "Préstamo aprobado exitosamente");
                 resultado.put("prestamo", prestamo);
@@ -226,9 +233,6 @@ public class PrestamoService {
     
     /**
      * Deniega un préstamo pendiente (cambia estado a Denegado)
-     * 
-     * @param idPrestamo ID del préstamo a denegar
-     * @return Map con resultado
      */
     public Map<String, Object> denegarPrestamo(int idPrestamo) {
         Map<String, Object> resultado = new HashMap<>();
@@ -256,7 +260,7 @@ public class PrestamoService {
             
             // Guardar en la base de datos
             if (prestamoModel.update(prestamo)) {
-                // Devolver la unidad disponible al material
+                // Devolver la unidad disponible al material y decrementar prestada
                 Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
                 if (material != null) {
                     material.setCantidadDisponible(material.getCantidadDisponible() + 1);
@@ -330,10 +334,11 @@ public class PrestamoService {
             
             // Guardar en la base de datos
             if (prestamoModel.update(prestamo)) {
-                // Incrementar cantidad disponible del material
+                // Incrementar cantidad disponible y decrementar cantidad prestada del material
                 Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
                 if (material != null) {
                     material.setCantidadDisponible(material.getCantidadDisponible() + 1);
+                    material.setCantidadPrestada(material.getCantidadPrestada() - 1);
                     materialModel.actualizar(material);
                 }
                 

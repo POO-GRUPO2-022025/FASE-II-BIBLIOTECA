@@ -52,26 +52,35 @@ public class PrestamoModel {
     
     // SQL con JOINs para obtener información completa
     private static final String SQL_SELECT_ALL_WITH_INFO = 
-        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material " +
+        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material, " +
+        "g.nombre as genero_nombre " +
         "FROM prestamos p " +
         "LEFT JOIN usuarios u ON p.id_usuario = u.id_usuario " +
         "LEFT JOIN materiales m ON p.id_material = m.id_material " +
+        "LEFT JOIN libros l ON m.id_material = l.id_material " +
+        "LEFT JOIN genero g ON l.id_genero = g.id_genero " +
         "ORDER BY p.id_prestamo DESC";
     
     private static final String SQL_SELECT_BY_USER_WITH_INFO = 
-        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material " +
+        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material, " +
+        "g.nombre as genero_nombre " +
         "FROM prestamos p " +
         "LEFT JOIN usuarios u ON p.id_usuario = u.id_usuario " +
         "LEFT JOIN materiales m ON p.id_material = m.id_material " +
+        "LEFT JOIN libros l ON m.id_material = l.id_material " +
+        "LEFT JOIN genero g ON l.id_genero = g.id_genero " +
         "WHERE p.id_usuario = ? " +
         "ORDER BY p.id_prestamo DESC";
     
     // SQL base para filtros dinámicos (similar a selectPrestamosDetalladoFiltrado)
     private static final String SQL_SELECT_FILTRADO_BASE = 
-        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material " +
+        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material, " +
+        "g.nombre as genero_nombre " +
         "FROM prestamos p " +
         "LEFT JOIN usuarios u ON p.id_usuario = u.id_usuario " +
-        "LEFT JOIN materiales m ON p.id_material = m.id_material ";
+        "LEFT JOIN materiales m ON p.id_material = m.id_material " +
+        "LEFT JOIN libros l ON m.id_material = l.id_material " +
+        "LEFT JOIN genero g ON l.id_genero = g.id_genero ";
 
     /**
      * Inserta un nuevo préstamo y retorna el préstamo con su ID generado
@@ -388,6 +397,7 @@ public class PrestamoModel {
                 prestamo.setNombreUsuario(rs.getString("nombre_usuario"));
                 prestamo.setTituloMaterial(rs.getString("titulo_material"));
                 prestamo.setTipoMaterial(rs.getString("tipo_material"));
+                prestamo.setGeneroNombre(rs.getString("genero_nombre"));
                 
                 prestamos.add(prestamo);
             }
@@ -430,6 +440,7 @@ public class PrestamoModel {
                 prestamo.setNombreUsuario(rs.getString("nombre_usuario"));
                 prestamo.setTituloMaterial(rs.getString("titulo_material"));
                 prestamo.setTipoMaterial(rs.getString("tipo_material"));
+                prestamo.setGeneroNombre(rs.getString("genero_nombre"));
                 prestamos.add(prestamo);
             }
         } catch (SQLException | ClassNotFoundException e) {
@@ -471,6 +482,7 @@ public class PrestamoModel {
                 prestamo.setNombreUsuario(rs.getString("nombre_usuario"));
                 prestamo.setTituloMaterial(rs.getString("titulo_material"));
                 prestamo.setTipoMaterial(rs.getString("tipo_material"));
+                prestamo.setGeneroNombre(rs.getString("genero_nombre"));
                 prestamos.add(prestamo);
             }
         } catch (SQLException | ClassNotFoundException e) {
