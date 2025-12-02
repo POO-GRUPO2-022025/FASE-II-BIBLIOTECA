@@ -23,6 +23,11 @@ public class Prestamo implements Serializable {
     private Date fechaDevolucion;
     private BigDecimal moraTotal;
     private Estado estado;
+    
+    // Campos adicionales para mostrar información relacionada (no se mapean a BD)
+    private String nombreUsuario;
+    private String tituloMaterial;
+    private String tipoMaterial;
 
     public Prestamo() {}
 
@@ -110,5 +115,29 @@ public class Prestamo implements Serializable {
 
     public void setFechaEstimada(Date fechaEstimada) {
         this.fechaEstimada = fechaEstimada;
+    }
+
+    public String getNombreUsuario() {
+        return nombreUsuario;
+    }
+
+    public void setNombreUsuario(String nombreUsuario) {
+        this.nombreUsuario = nombreUsuario;
+    }
+
+    public String getTituloMaterial() {
+        return tituloMaterial;
+    }
+
+    public void setTituloMaterial(String tituloMaterial) {
+        this.tituloMaterial = tituloMaterial;
+    }
+
+    public String getTipoMaterial() {
+        return tipoMaterial;
+    }
+
+    public void setTipoMaterial(String tipoMaterial) {
+        this.tipoMaterial = tipoMaterial;
     }
 }
