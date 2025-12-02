@@ -16,8 +16,6 @@ public class MoraModel {
 
     /**
      * Obtiene una mora por su ID
-     * @param idMora ID de la mora a buscar
-     * @return Mora encontrada o null si no existe
      */
     public Mora obtenerPorId(int idMora) {
         Connection conn = null;

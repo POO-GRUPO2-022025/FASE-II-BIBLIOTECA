@@ -285,9 +285,6 @@ public class PrestamoModel {
      * 1. Cantidad de préstamos activos (Pendiente + En_Curso)
      * 2. Si tiene préstamos con retraso (fecha_estimada vencida)
      * 3. Si tiene mora pendiente (mora_total > 0)
-     * 
-     * @param idUsuario ID del usuario a validar
-     * @return ValidacionSolicitud con prestamosActivos, tieneRetraso y tieneMora
      */
     public ValidacionSolicitud validarPuedeSolicitarPrestamo(int idUsuario) {
         Connection conn = null;
@@ -321,12 +318,6 @@ public class PrestamoModel {
 
     /**
      * Filtra préstamos con información completa usando query dinámica
-     * Similar a selectPrestamosDetalladoFiltrado de la implementación anterior
-     * 
-     * @param estado Estado del préstamo (null o vacío para todos)
-     * @param tipoMaterial Tipo de material (null o vacío para todos)
-     * @param conMora true para mostrar solo préstamos con mora
-     * @return Lista de préstamos filtrados con información de usuario y material
      */
     public List<Prestamo> selectPrestamosFiltrados(String estado, String tipoMaterial, boolean conMora) {
         List<Prestamo> prestamos = new ArrayList<>();

@@ -334,7 +334,7 @@
                             <hr>
                             <p>¿Está seguro que desea denegar este préstamo?</p>
                             <p class="text-danger">
-                                <small><strong>Advertencia:</strong> Esta acción no se puede deshacer. El usuario será notificado del rechazo.</small>
+                                <small><strong>Advertencia:</strong> Esta acción no se puede deshacer.</small>
                             </p>
                         </div>
                         <div class="modal-footer">

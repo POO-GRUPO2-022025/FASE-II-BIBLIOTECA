@@ -14,7 +14,11 @@ public class MaterialModel {
     private static final String SQL_SELECT = "SELECT * FROM materiales WHERE id_material=?";
     private static final String SQL_SELECT_ALL = "SELECT id_material, tipo_material, titulo, ubicacion, cantidad_total, cantidad_disponible, cantidad_prestados, cantidad_daniado FROM materiales ORDER BY id_material";
     private static final String SQL_SELECT_BY_TYPE = "SELECT id_material, tipo_material, titulo, ubicacion, cantidad_total, cantidad_disponible, cantidad_prestados, cantidad_daniado FROM materiales WHERE tipo_material=? ORDER BY id_material";
-    private static final String SQL_SELECT_BY_TITLE = "SELECT id_material, tipo_material, titulo, ubicacion, cantidad_total, cantidad_disponible, cantidad_prestados, cantidad_daniado FROM materiales WHERE titulo LIKE ? ORDER BY id_material";
+    
+    // SQL base para filtros dinámicos
+    private static final String SQL_SELECT_FILTRADO_BASE = 
+        "SELECT id_material, tipo_material, titulo, ubicacion, cantidad_total, cantidad_disponible, cantidad_prestados, cantidad_daniado " +
+        "FROM materiales ";
 
     /**
      * Inserta un nuevo material y retorna el material con su ID generado
@@ -224,17 +228,50 @@ public class MaterialModel {
     }
 
     /**
-     * Busca materiales por título
+     * Filtra materiales con query dinámica
+     * @param titulo Título a buscar (null o vacío para todos)
+     * @param tipo Tipo de material (null o vacío para todos)
+     * @return Lista de materiales filtrados
      */
-    public List<Material> buscarPorTitulo(String titulo) {
+    public List<Material> buscarMaterialesFiltrados(String titulo, String tipo) {
         List<Material> materiales = new ArrayList<>();
         Connection conn = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
+        
+        StringBuilder sql = new StringBuilder(SQL_SELECT_FILTRADO_BASE);
+        boolean hayFiltros = false;
+        
+        // Filtro por tipo
+        if (tipo != null && !tipo.isEmpty()) {
+            sql.append("WHERE tipo_material = ? ");
+            hayFiltros = true;
+        }
+        
+        // Filtro por título
+        if (titulo != null && !titulo.isEmpty()) {
+            if (hayFiltros) {
+                sql.append("AND titulo LIKE ? ");
+            } else {
+                sql.append("WHERE titulo LIKE ? ");
+                hayFiltros = true;
+            }
+        }
+        
+        sql.append("ORDER BY id_material");
+        
         try {
             conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_BY_TITLE);
-            stmt.setString(1, "%" + titulo + "%");
+            stmt = conn.prepareStatement(sql.toString());
+            
+            int paramIndex = 1;
+            if (tipo != null && !tipo.isEmpty()) {
+                stmt.setString(paramIndex++, tipo);
+            }
+            if (titulo != null && !titulo.isEmpty()) {
+                stmt.setString(paramIndex, "%" + titulo + "%");
+            }
+            
             rs = stmt.executeQuery();
             
             while (rs.next()) {

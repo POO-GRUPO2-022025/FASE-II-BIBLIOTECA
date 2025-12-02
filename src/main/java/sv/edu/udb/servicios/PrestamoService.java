@@ -43,10 +43,6 @@ public class PrestamoService {
     /**
      * Solicita un nuevo préstamo (estado: Pendiente)
      * Valida que el usuario no haya excedido su límite de préstamos activos
-     * 
-     * @param idUsuario ID del usuario que solicita el préstamo
-     * @param idMaterial ID del material a prestar
-     * @return Map con resultado (success: boolean, mensaje: String, prestamo: Prestamo)
      */
     public Map<String, Object> solicitarPrestamo(int idUsuario, int idMaterial) {
         Map<String, Object> resultado = new HashMap<>();
@@ -133,6 +129,18 @@ public class PrestamoService {
             Prestamo prestamoCreado = prestamoModel.insert(nuevoPrestamo);
             
             if (prestamoCreado != null) {
+                // Reducir cantidad disponible del material
+                material.setCantidadDisponible(material.getCantidadDisponible() - 1);
+                boolean materialActualizado = materialModel.actualizar(material);
+                
+                if (!materialActualizado) {
+                    // Si falla la actualización del material, intentar revertir el préstamo
+                    prestamoModel.delete(prestamoCreado.getIdPrestamo());
+                    resultado.put("success", false);
+                    resultado.put("mensaje", "Error al actualizar la disponibilidad del material");
+                    return resultado;
+                }
+                
                 resultado.put("success", true);
                 resultado.put("mensaje", "Préstamo solicitado correctamente. Espere la aprobación del administrador.");
                 resultado.put("prestamo", prestamoCreado);
@@ -153,10 +161,6 @@ public class PrestamoService {
     /**
      * Aprueba un préstamo pendiente (cambia estado a En_Curso)
      * Establece la fecha de devolución estimada
-     * 
-     * @param idPrestamo ID del préstamo a aprobar
-     * @param fechaEstimadaDevolucion Fecha estimada de devolución
-     * @return Map con resultado
      */
     public Map<String, Object> aprobarPrestamo(int idPrestamo, LocalDate fechaEstimadaDevolucion) {
         Map<String, Object> resultado = new HashMap<>();
@@ -252,6 +256,13 @@ public class PrestamoService {
             
             // Guardar en la base de datos
             if (prestamoModel.update(prestamo)) {
+                // Devolver la unidad disponible al material
+                Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
+                if (material != null) {
+                    material.setCantidadDisponible(material.getCantidadDisponible() + 1);
+                    materialModel.actualizar(material);
+                }
+                
                 resultado.put("success", true);
                 resultado.put("mensaje", "Préstamo denegado exitosamente");
                 resultado.put("prestamo", prestamo);
@@ -272,9 +283,6 @@ public class PrestamoService {
     /**
      * Registra la devolución de un préstamo (cambia estado a Devuelto)
      * Calcula automáticamente la mora si hay retraso
-     * 
-     * @param idPrestamo ID del préstamo a devolver
-     * @return Map con resultado incluyendo mora calculada
      */
     public Map<String, Object> registrarDevolucion(int idPrestamo) {
         Map<String, Object> resultado = new HashMap<>();
@@ -322,6 +330,13 @@ public class PrestamoService {
             
             // Guardar en la base de datos
             if (prestamoModel.update(prestamo)) {
+                // Incrementar cantidad disponible del material
+                Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
+                if (material != null) {
+                    material.setCantidadDisponible(material.getCantidadDisponible() + 1);
+                    materialModel.actualizar(material);
+                }
+                
                 resultado.put("success", true);
                 resultado.put("mensaje", "Devolución registrada exitosamente");
                 resultado.put("prestamo", prestamo);
@@ -344,10 +359,6 @@ public class PrestamoService {
     
     /**
      * Registra un abono a la mora de un préstamo
-     * 
-     * @param idPrestamo ID del préstamo
-     * @param montoAbonar Monto a abonar a la mora
-     * @return Map con resultado
      */
     public Map<String, Object> abonarMora(int idPrestamo, BigDecimal montoAbonar) {
         Map<String, Object> resultado = new HashMap<>();
@@ -418,9 +429,6 @@ public class PrestamoService {
     
     /**
      * Verifica si un usuario puede solicitar más préstamos
-     * 
-     * @param idUsuario ID del usuario
-     * @return Map con resultado (puedeSolicitar: boolean, prestamosActivos: int, limiteMaximo: int)
      */
     public Map<String, Object> verificarDisponibilidadPrestamo(int idUsuario) {
         Map<String, Object> resultado = new HashMap<>();
@@ -469,11 +477,6 @@ public class PrestamoService {
      * Obtiene información completa y detallada de un préstamo para revisión
      * Incluye: datos del préstamo, usuario, material, tarifa de mora aplicable,
      * días de retraso actuales (si aplica), mora calculada, etc.
-     * 
-     * IDEAL PARA: Mostrar antes de aprobar, denegar o devolver un préstamo
-     * 
-     * @param idPrestamo ID del préstamo a revisar
-     * @return DetallePrestamoDTO con toda la información del préstamo
      */
     public DetallePrestamoDTO obtenerDetallePrestamo(int idPrestamo) {
         DetallePrestamoDTO detalle = new DetallePrestamoDTO();
@@ -587,9 +590,6 @@ public class PrestamoService {
     
     /**
      * Obtiene el límite de préstamos según el tipo de usuario
-     * 
-     * @param tipoUsuario Tipo de usuario (Alumno, Profesor, Administrador)
-     * @return Límite de préstamos simultáneos
      */
     private int obtenerLimitePrestamos(Usuario.TipoUsuario tipoUsuario) {
         switch (tipoUsuario) {

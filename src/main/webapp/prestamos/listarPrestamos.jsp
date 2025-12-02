@@ -86,9 +86,9 @@
                                 <div class="col-md-4 text-right">
                                     <c:choose>
                                         <c:when test="${puedeSolicitar}">
-                                            <button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#modalSolicitar">
+                                            <a href="${pageContext.request.contextPath}/prestamos.do?op=buscarMaterial" class="btn btn-success btn-lg">
                                                 <span class="glyphicon glyphicon-plus"></span> Solicitar Préstamo
-                                            </button>
+                                            </a>
                                         </c:when>
                                         <c:otherwise>
                                             <button type="button" class="btn btn-default btn-lg" disabled>
@@ -218,46 +218,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Modal para solicitar préstamo -->
-    <c:if test="${!esAdmin && puedeSolicitar}">
-        <div class="modal fade" id="modalSolicitar" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                        <h4 class="modal-title">Solicitar Préstamo</h4>
-                    </div>
-                    <form method="post" action="${pageContext.request.contextPath}/prestamos.do">
-                        <input type="hidden" name="op" value="solicitar">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label>Seleccione el material:</label>
-                                <select name="idMaterial" class="form-control" required>
-                                    <option value="">-- Seleccione --</option>
-                                    <c:forEach items="${materialesDisponibles}" var="material">
-                                        <option value="${material.idMaterial}">
-                                            [${material.tipoMaterial}] ${material.titulo} - Disponibles: ${material.cantidadDisponible}
-                                        </option>
-                                    </c:forEach>
-                                </select>
-                            </div>
-                            <div class="alert alert-info">
-                                <strong>Información:</strong> Su solicitud será revisada por el encargado. 
-                                Una vez aprobada, tendrá el tiempo establecido para devolver el material.
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Solicitar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </c:if>
     
     <!-- Modal para aprobar préstamo -->
     <div class="modal fade" id="modalAprobar" tabindex="-1" role="dialog">

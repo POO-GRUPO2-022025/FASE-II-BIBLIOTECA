@@ -17,13 +17,10 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controlador SIMPLIFICADO para gestionar préstamos
- * Todo se maneja desde listarPrestamos.jsp
- */
 @WebServlet("/prestamos.do")
 public class PrestamosController extends HttpServlet {
     
@@ -53,6 +50,9 @@ public class PrestamosController extends HttpServlet {
                 break;
             case "detalle":
                 detalle(request, response);
+                break;
+            case "buscarMaterial":
+                buscarMaterial(request, response);
                 break;
             case "solicitar":
                 solicitar(request, response);
@@ -103,15 +103,10 @@ public class PrestamosController extends HttpServlet {
             int limiteMaximo = (int) disponibilidad.get("limiteMaximo");
             String razonBloqueo = (String) disponibilidad.getOrDefault("mensaje", "");
             
-            // Obtener todos los materiales
-            MaterialModel materialModel = new MaterialModel();
-            List<Material> materialesDisponibles = materialModel.listarTodos();
-            
             request.setAttribute("puedeSolicitar", puedeSolicitar);
             request.setAttribute("prestamosActivos", prestamosActivos);
             request.setAttribute("limiteMaximo", limiteMaximo);
             request.setAttribute("razonBloqueo", razonBloqueo);
-            request.setAttribute("materialesDisponibles", materialesDisponibles);
         }
         
         request.setAttribute("prestamos", prestamos);
@@ -149,6 +144,29 @@ public class PrestamosController extends HttpServlet {
         request.setAttribute("filtroTipoMaterial", filtroTipoMaterial);
         request.setAttribute("conMora", conMora);
         request.getRequestDispatcher("/prestamos/listarPrestamos.jsp").forward(request, response);
+    }
+    
+    /**
+     * Busca materiales por título y tipo para solicitar préstamo
+     */
+    private void buscarMaterial(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        Usuario usuario = obtenerUsuarioSesion(request);
+        String titulo = request.getParameter("titulo");
+        String tipo = request.getParameter("tipo");
+        
+        List<Material> materiales = new ArrayList<>();
+        MaterialModel materialModel = new MaterialModel();
+        
+        // Solo buscar si al menos un criterio está presente
+        if ((titulo != null && !titulo.trim().isEmpty()) || (tipo != null && !tipo.trim().isEmpty())) {
+            materiales = materialModel.buscarMaterialesFiltrados(titulo, tipo);
+        }
+        
+        request.setAttribute("materiales", materiales);
+        request.setAttribute("usuario", usuario);
+        request.getRequestDispatcher("/prestamos/seleccionarMaterial.jsp").forward(request, response);
     }
     
     /**
