@@ -1,5 +1,6 @@
 package sv.edu.udb.controllers;
 
+import sv.edu.udb.beans.DetallePrestamoDTO;
 import sv.edu.udb.beans.Usuario;
 import sv.edu.udb.beans.Prestamo;
 import sv.edu.udb.beans.Material;
@@ -18,7 +19,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Controlador SIMPLIFICADO para gestionar préstamos
@@ -50,6 +50,9 @@ public class PrestamosController extends HttpServlet {
                 break;
             case "filtrar":
                 filtrar(request, response);
+                break;
+            case "detalle":
+                detalle(request, response);
                 break;
             case "solicitar":
                 solicitar(request, response);
@@ -98,36 +101,15 @@ public class PrestamosController extends HttpServlet {
             boolean puedeSolicitar = (boolean) disponibilidad.get("puedeSolicitar");
             int prestamosActivos = (int) disponibilidad.get("prestamosActivos");
             int limiteMaximo = (int) disponibilidad.get("limiteMaximo");
+            String razonBloqueo = (String) disponibilidad.getOrDefault("mensaje", "");
             
-            // Verificar si tiene moras pendientes
-            boolean tieneMora = false;
-            List<Prestamo> prestamosConMora = prestamoModel.selectPrestamosConMora();
-            for (Prestamo p : prestamosConMora) {
-                if (p.getIdUsuario() == usuario.getIdUsuario()) {
-                    tieneMora = true;
-                    break;
-                }
-            }
-            
-            // Determinar razón de bloqueo
-            String razonBloqueo = "";
-            if (tieneMora) {
-                puedeSolicitar = false;
-                razonBloqueo = "Tiene mora pendiente. Debe pagar antes de solicitar préstamos.";
-            } else if (!puedeSolicitar) {
-                razonBloqueo = "Ha alcanzado el límite de " + limiteMaximo + " préstamos simultáneos.";
-            }
-            
-            // Obtener materiales disponibles
+            // Obtener todos los materiales
             MaterialModel materialModel = new MaterialModel();
-            List<Material> materialesDisponibles = materialModel.listarTodos().stream()
-                .filter(m -> m.getCantidadDisponible() > 0)
-                .collect(java.util.stream.Collectors.toList());
+            List<Material> materialesDisponibles = materialModel.listarTodos();
             
             request.setAttribute("puedeSolicitar", puedeSolicitar);
             request.setAttribute("prestamosActivos", prestamosActivos);
             request.setAttribute("limiteMaximo", limiteMaximo);
-            request.setAttribute("tieneMora", tieneMora);
             request.setAttribute("razonBloqueo", razonBloqueo);
             request.setAttribute("materialesDisponibles", materialesDisponibles);
         }
@@ -139,39 +121,57 @@ public class PrestamosController extends HttpServlet {
     }
     
     /**
-     * Filtra préstamos por estado o tipo de material
+     * Filtra préstamos por estado, tipo de material o mora
+     * Usa una sola query SQL optimizada con filtros dinámicos
      */
     private void filtrar(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
         Usuario usuario = obtenerUsuarioSesion(request);
+        boolean esAdmin = usuario.getTipoUsuario() == Usuario.TipoUsuario.Encargado;
+        
         String filtroEstado = request.getParameter("estado");
         String filtroTipoMaterial = request.getParameter("tipoMaterial");
+        String filtroMoraStr = request.getParameter("conMora");
+        boolean conMora = "true".equals(filtroMoraStr);
         
-        List<Prestamo> prestamos;
-        
-        if (filtroEstado != null && !filtroEstado.isEmpty()) {
-            prestamos = prestamoModel.selectPrestamosPorEstado(filtroEstado);
-        } else {
-            prestamos = prestamoModel.selectAll();
-        }
-        
-        // Filtrar por tipo de material si es necesario
-        if (filtroTipoMaterial != null && !filtroTipoMaterial.isEmpty()) {
-            MaterialModel materialModel = new MaterialModel();
-            prestamos = prestamos.stream()
-                .filter(p -> {
-                    Material mat = materialModel.obtenerPorId(p.getIdMaterial());
-                    return mat != null && mat.getTipoMaterial().name().equals(filtroTipoMaterial);
-                })
-                .collect(Collectors.toList());
-        }
+        // Una sola query con filtros dinámicos (como selectPrestamosDetalladoFiltrado)
+        List<Prestamo> prestamos = prestamoModel.selectPrestamosFiltrados(
+            filtroEstado, 
+            filtroTipoMaterial, 
+            conMora
+        );
         
         request.setAttribute("prestamos", prestamos);
         request.setAttribute("usuario", usuario);
+        request.setAttribute("esAdmin", esAdmin);
         request.setAttribute("filtroEstado", filtroEstado);
         request.setAttribute("filtroTipoMaterial", filtroTipoMaterial);
+        request.setAttribute("conMora", conMora);
         request.getRequestDispatcher("/prestamos/listarPrestamos.jsp").forward(request, response);
+    }
+    
+    /**
+     * Muestra el detalle de un préstamo con todas sus opciones de acción
+     */
+    private void detalle(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        Usuario usuario = obtenerUsuarioSesion(request);
+        int idPrestamo = Integer.parseInt(request.getParameter("idPrestamo"));
+        
+        // Obtener detalle completo del préstamo
+        DetallePrestamoDTO detalle = prestamoService.obtenerDetallePrestamo(idPrestamo);
+        
+        if (detalle == null) {
+            request.setAttribute("error", "Préstamo no encontrado");
+            listar(request, response);
+            return;
+        }
+        
+        request.setAttribute("detalle", detalle);
+        request.setAttribute("usuario", usuario);
+        request.getRequestDispatcher("/prestamos/detallePrestamo.jsp").forward(request, response);
     }
     
     /**
@@ -218,7 +218,7 @@ public class PrestamosController extends HttpServlet {
             request.getSession().setAttribute("error", resultado.get("mensaje"));
         }
         
-        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=listar");
+        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=detalle&idPrestamo=" + idPrestamo);
     }
     
     /**
@@ -237,7 +237,7 @@ public class PrestamosController extends HttpServlet {
             request.getSession().setAttribute("error", resultado.get("mensaje"));
         }
         
-        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=listar");
+        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=detalle&idPrestamo=" + idPrestamo);
     }
     
     /**
@@ -256,7 +256,7 @@ public class PrestamosController extends HttpServlet {
             request.getSession().setAttribute("error", resultado.get("mensaje"));
         }
         
-        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=listar");
+        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=detalle&idPrestamo=" + idPrestamo);
     }
     
     /**
@@ -266,7 +266,7 @@ public class PrestamosController extends HttpServlet {
             throws ServletException, IOException {
         
         int idPrestamo = Integer.parseInt(request.getParameter("idPrestamo"));
-        BigDecimal monto = new BigDecimal(request.getParameter("monto"));
+        BigDecimal monto = new BigDecimal(request.getParameter("montoAbono"));
         
         Map<String, Object> resultado = prestamoService.abonarMora(idPrestamo, monto);
         
@@ -276,7 +276,7 @@ public class PrestamosController extends HttpServlet {
             request.getSession().setAttribute("error", resultado.get("mensaje"));
         }
         
-        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=listar");
+        response.sendRedirect(request.getContextPath() + "/prestamos.do?op=detalle&idPrestamo=" + idPrestamo);
     }
     
     /**
@@ -294,7 +294,7 @@ public class PrestamosController extends HttpServlet {
             } else if ("profesor".equals(tipoTest)) {
                 usuario = crearUsuarioTemporal(2, "Profesor Test", "profesor@test.com", Usuario.TipoUsuario.Profesor);
             } else {
-                usuario = crearUsuarioTemporal(4, "Alumno Test", "alumno@test.com", Usuario.TipoUsuario.Alumno);
+                usuario = crearUsuarioTemporal(3, "Alumno Test", "alumno@test.com", Usuario.TipoUsuario.Alumno);
             }
             
             session.setAttribute("usuario", usuario);

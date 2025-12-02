@@ -9,17 +9,46 @@ import java.util.List;
 
 public class PrestamoModel {
     
+    /**
+     * Clase interna para retornar el resultado de la validación
+     */
+    public static class ValidacionSolicitud {
+        private final int prestamosActivos;
+        private final boolean tieneRetraso;
+        private final boolean tieneMora;
+        
+        public ValidacionSolicitud(int prestamosActivos, boolean tieneRetraso, boolean tieneMora) {
+            this.prestamosActivos = prestamosActivos;
+            this.tieneRetraso = tieneRetraso;
+            this.tieneMora = tieneMora;
+        }
+        
+        public int getPrestamosActivos() {
+            return prestamosActivos;
+        }
+        
+        public boolean isTieneRetraso() {
+            return tieneRetraso;
+        }
+        
+        public boolean isTieneMora() {
+            return tieneMora;
+        }
+    }
+    
     private static final String SQL_INSERT = "INSERT INTO prestamos(id_usuario, id_material, id_mora, fecha_prestamo, fecha_estimada, fecha_devolucion, mora_total, estado) VALUES(?,?,?,?,?,?,?,?)";
     private static final String SQL_UPDATE = "UPDATE prestamos SET id_usuario=?, id_material=?, id_mora=?, fecha_prestamo=?, fecha_estimada=?, fecha_devolucion=?, mora_total=?, estado=? WHERE id_prestamo=?";
     private static final String SQL_UPDATE_ESTADO = "UPDATE prestamos SET estado=?, fecha_devolucion=?, mora_total=? WHERE id_prestamo=?";
     private static final String SQL_DELETE = "DELETE FROM prestamos WHERE id_prestamo=?";
     private static final String SQL_SELECT = "SELECT * FROM prestamos WHERE id_prestamo=?";
-    private static final String SQL_SELECT_ALL = "SELECT * FROM prestamos ORDER BY id_prestamo";
-    private static final String SQL_SELECT_BY_USER = "SELECT * FROM prestamos WHERE id_usuario=? ORDER BY id_prestamo DESC";
-    private static final String SQL_SELECT_BY_STATE = "SELECT * FROM prestamos WHERE estado=? ORDER BY id_prestamo DESC";
-    private static final String SQL_SELECT_ACTIVE_BY_USER = "SELECT * FROM prestamos WHERE id_usuario=? AND estado IN ('Pendiente', 'En_Curso') ORDER BY id_prestamo DESC";
-    private static final String SQL_COUNT_ACTIVE_BY_USER = "SELECT COUNT(*) FROM prestamos WHERE id_usuario=? AND estado IN ('Pendiente', 'En_Curso')";
-    private static final String SQL_SELECT_WITH_MORA = "SELECT * FROM prestamos WHERE mora_total > 0 ORDER BY id_prestamo DESC";
+    
+    // SQL optimizada para validar si un usuario puede solicitar préstamos (una sola consulta)
+    // Retorna: prestamos_activos (count), tiene_retraso (0 o 1), tiene_mora (0 o 1)
+    private static final String SQL_VALIDAR_PUEDE_SOLICITAR = 
+        "SELECT " +
+        "  (SELECT COUNT(*) FROM prestamos WHERE id_usuario=? AND estado IN ('Pendiente', 'En_Curso')) as prestamos_activos, " +
+        "  (SELECT COUNT(*) FROM prestamos WHERE id_usuario=? AND estado='En_Curso' AND fecha_estimada < CURDATE()) as tiene_retraso, " +
+        "  (SELECT COUNT(*) FROM prestamos WHERE id_usuario=? AND mora_total > 0) as tiene_mora";
     
     // SQL con JOINs para obtener información completa
     private static final String SQL_SELECT_ALL_WITH_INFO = 
@@ -36,15 +65,23 @@ public class PrestamoModel {
         "LEFT JOIN materiales m ON p.id_material = m.id_material " +
         "WHERE p.id_usuario = ? " +
         "ORDER BY p.id_prestamo DESC";
+    
+    // SQL base para filtros dinámicos (similar a selectPrestamosDetalladoFiltrado)
+    private static final String SQL_SELECT_FILTRADO_BASE = 
+        "SELECT p.*, u.nombre as nombre_usuario, m.titulo as titulo_material, m.tipo_material as tipo_material " +
+        "FROM prestamos p " +
+        "LEFT JOIN usuarios u ON p.id_usuario = u.id_usuario " +
+        "LEFT JOIN materiales m ON p.id_material = m.id_material ";
 
     /**
      * Inserta un nuevo préstamo y retorna el préstamo con su ID generado
+     * OPTIMIZADO: Retorna el objeto completo sin hacer SELECT adicional (patrón PrestamosDB)
      */
     public Prestamo insert(Prestamo prestamo) {
         Connection conn = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
-        Prestamo resultado = null;
+        Prestamo nuevoPrestamo = null;
         
         try {
             conn = Conexion.getConexion();
@@ -52,59 +89,110 @@ public class PrestamoModel {
             stmt.setInt(1, prestamo.getIdUsuario());
             stmt.setInt(2, prestamo.getIdMaterial());
             stmt.setInt(3, prestamo.getIdMora());
-            stmt.setDate(4, prestamo.getFechaPrestamo());
-            stmt.setDate(5, prestamo.getFechaEstimada());
-            stmt.setDate(6, prestamo.getFechaDevolucion());
+            
+            // Validar null para fecha_prestamo
+            if (prestamo.getFechaPrestamo() != null) {
+                stmt.setDate(4, prestamo.getFechaPrestamo());
+            } else {
+                stmt.setNull(4, java.sql.Types.DATE);
+            }
+            
+            // Validar null para fecha_estimada
+            if (prestamo.getFechaEstimada() != null) {
+                stmt.setDate(5, prestamo.getFechaEstimada());
+            } else {
+                stmt.setNull(5, java.sql.Types.DATE);
+            }
+            
+            // Validar null para fecha_devolucion
+            if (prestamo.getFechaDevolucion() != null) {
+                stmt.setDate(6, prestamo.getFechaDevolucion());
+            } else {
+                stmt.setNull(6, java.sql.Types.DATE);
+            }
+            
             stmt.setBigDecimal(7, prestamo.getMoraTotal());
             stmt.setString(8, prestamo.getEstado().name());
             
-            int rows = stmt.executeUpdate();
+            stmt.executeUpdate();
             
-            if (rows > 0) {
-                rs = stmt.getGeneratedKeys();
-                if (rs.next()) {
-                    int idGenerado = rs.getInt(1);
-                    resultado = select(idGenerado);
-                }
+            rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                // Retornar el mismo préstamo con el ID generado (sin SELECT adicional)
+                nuevoPrestamo = new Prestamo();
+                nuevoPrestamo.setIdPrestamo(rs.getInt(1));
+                nuevoPrestamo.setIdUsuario(prestamo.getIdUsuario());
+                nuevoPrestamo.setIdMaterial(prestamo.getIdMaterial());
+                nuevoPrestamo.setIdMora(prestamo.getIdMora());
+                nuevoPrestamo.setFechaPrestamo(prestamo.getFechaPrestamo());
+                nuevoPrestamo.setFechaEstimada(prestamo.getFechaEstimada());
+                nuevoPrestamo.setFechaDevolucion(prestamo.getFechaDevolucion());
+                nuevoPrestamo.setMoraTotal(prestamo.getMoraTotal());
+                nuevoPrestamo.setEstado(prestamo.getEstado());
             }
+            
         } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error al insertar préstamo", e);
         } finally {
             Conexion.close(rs);
             Conexion.close(stmt);
             Conexion.close(conn);
         }
-        return resultado;
+        
+        return nuevoPrestamo;
     }
 
     /**
      * Actualiza un préstamo completo
+     * Maneja fechas NULL explícitamente
      */
     public boolean update(Prestamo prestamo) {
         Connection conn = null;
         PreparedStatement stmt = null;
         boolean retorno = false;
+        
         try {
             conn = Conexion.getConexion();
             stmt = conn.prepareStatement(SQL_UPDATE);
             stmt.setInt(1, prestamo.getIdUsuario());
             stmt.setInt(2, prestamo.getIdMaterial());
             stmt.setInt(3, prestamo.getIdMora());
-            stmt.setDate(4, prestamo.getFechaPrestamo());
-            stmt.setDate(5, prestamo.getFechaEstimada());
-            stmt.setDate(6, prestamo.getFechaDevolucion());
+            
+            // Validar null para fecha_prestamo
+            if (prestamo.getFechaPrestamo() != null) {
+                stmt.setDate(4, prestamo.getFechaPrestamo());
+            } else {
+                stmt.setNull(4, java.sql.Types.DATE);
+            }
+            
+            // Validar null para fecha_estimada
+            if (prestamo.getFechaEstimada() != null) {
+                stmt.setDate(5, prestamo.getFechaEstimada());
+            } else {
+                stmt.setNull(5, java.sql.Types.DATE);
+            }
+            
+            // Validar null para fecha_devolucion
+            if (prestamo.getFechaDevolucion() != null) {
+                stmt.setDate(6, prestamo.getFechaDevolucion());
+            } else {
+                stmt.setNull(6, java.sql.Types.DATE);
+            }
+            
             stmt.setBigDecimal(7, prestamo.getMoraTotal());
             stmt.setString(8, prestamo.getEstado().name());
             stmt.setInt(9, prestamo.getIdPrestamo());
             
             int filas = stmt.executeUpdate();
             retorno = filas > 0;
+            
         } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error al actualizar préstamo", e);
         } finally {
             Conexion.close(stmt);
             Conexion.close(conn);
         }
+        
         return retorno;
     }
 
@@ -192,169 +280,33 @@ public class PrestamoModel {
     }
 
     /**
-     * Obtiene todos los préstamos
+     * Valida si un usuario puede solicitar un nuevo préstamo
+     * Verifica en una sola consulta SQL:
+     * 1. Cantidad de préstamos activos (Pendiente + En_Curso)
+     * 2. Si tiene préstamos con retraso (fecha_estimada vencida)
+     * 3. Si tiene mora pendiente (mora_total > 0)
+     * 
+     * @param idUsuario ID del usuario a validar
+     * @return ValidacionSolicitud con prestamosActivos, tieneRetraso y tieneMora
      */
-    public List<Prestamo> selectAll() {
-        List<Prestamo> prestamos = new ArrayList<>();
+    public ValidacionSolicitud validarPuedeSolicitarPrestamo(int idUsuario) {
         Connection conn = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
-        try {
-            conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_ALL);
-            rs = stmt.executeQuery();
-            
-            while (rs.next()) {
-                Prestamo prestamo = new Prestamo();
-                prestamo.setIdPrestamo(rs.getInt("id_prestamo"));
-                prestamo.setIdUsuario(rs.getInt("id_usuario"));
-                prestamo.setIdMaterial(rs.getInt("id_material"));
-                prestamo.setIdMora(rs.getInt("id_mora"));
-                prestamo.setFechaPrestamo(rs.getDate("fecha_prestamo"));
-                prestamo.setFechaEstimada(rs.getDate("fecha_estimada"));
-                prestamo.setFechaDevolucion(rs.getDate("fecha_devolucion"));
-                prestamo.setMoraTotal(rs.getBigDecimal("mora_total"));
-                prestamo.setEstado(Estado.valueOf(rs.getString("estado")));
-                prestamos.add(prestamo);
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            Conexion.close(rs);
-            Conexion.close(stmt);
-            Conexion.close(conn);
-        }
-        return prestamos;
-    }
-
-    /**
-     * Obtiene préstamos por usuario
-     */
-    public List<Prestamo> selectByUsuario(int idUsuario) {
-        List<Prestamo> prestamos = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        try {
-            conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_BY_USER);
-            stmt.setInt(1, idUsuario);
-            rs = stmt.executeQuery();
-            
-            while (rs.next()) {
-                Prestamo prestamo = new Prestamo();
-                prestamo.setIdPrestamo(rs.getInt("id_prestamo"));
-                prestamo.setIdUsuario(rs.getInt("id_usuario"));
-                prestamo.setIdMaterial(rs.getInt("id_material"));
-                prestamo.setIdMora(rs.getInt("id_mora"));
-                prestamo.setFechaPrestamo(rs.getDate("fecha_prestamo"));
-                prestamo.setFechaEstimada(rs.getDate("fecha_estimada"));
-                prestamo.setFechaDevolucion(rs.getDate("fecha_devolucion"));
-                prestamo.setMoraTotal(rs.getBigDecimal("mora_total"));
-                prestamo.setEstado(Estado.valueOf(rs.getString("estado")));
-                prestamos.add(prestamo);
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            Conexion.close(rs);
-            Conexion.close(stmt);
-            Conexion.close(conn);
-        }
-        return prestamos;
-    }
-
-    /**
-     * Obtiene préstamos activos (Pendiente o En_Curso) por usuario
-     */
-    public List<Prestamo> selectPrestamosActivosPorUsuario(int idUsuario) {
-        List<Prestamo> prestamos = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        try {
-            conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_ACTIVE_BY_USER);
-            stmt.setInt(1, idUsuario);
-            rs = stmt.executeQuery();
-            
-            while (rs.next()) {
-                Prestamo prestamo = new Prestamo();
-                prestamo.setIdPrestamo(rs.getInt("id_prestamo"));
-                prestamo.setIdUsuario(rs.getInt("id_usuario"));
-                prestamo.setIdMaterial(rs.getInt("id_material"));
-                prestamo.setIdMora(rs.getInt("id_mora"));
-                prestamo.setFechaPrestamo(rs.getDate("fecha_prestamo"));
-                prestamo.setFechaEstimada(rs.getDate("fecha_estimada"));
-                prestamo.setFechaDevolucion(rs.getDate("fecha_devolucion"));
-                prestamo.setMoraTotal(rs.getBigDecimal("mora_total"));
-                prestamo.setEstado(Estado.valueOf(rs.getString("estado")));
-                prestamos.add(prestamo);
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            Conexion.close(rs);
-            Conexion.close(stmt);
-            Conexion.close(conn);
-        }
-        return prestamos;
-    }
-
-    /**
-     * Obtiene préstamos por estado
-     */
-    public List<Prestamo> selectPrestamosPorEstado(String estado) {
-        List<Prestamo> prestamos = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        try {
-            conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_BY_STATE);
-            stmt.setString(1, estado);  
-            rs = stmt.executeQuery();
-            
-            while (rs.next()) {
-                Prestamo prestamo = new Prestamo();
-                prestamo.setIdPrestamo(rs.getInt("id_prestamo"));
-                prestamo.setIdUsuario(rs.getInt("id_usuario"));
-                prestamo.setIdMaterial(rs.getInt("id_material"));
-                prestamo.setIdMora(rs.getInt("id_mora"));
-                prestamo.setFechaPrestamo(rs.getDate("fecha_prestamo"));
-                prestamo.setFechaEstimada(rs.getDate("fecha_estimada"));
-                prestamo.setFechaDevolucion(rs.getDate("fecha_devolucion"));
-                prestamo.setMoraTotal(rs.getBigDecimal("mora_total"));
-                prestamo.setEstado(Estado.valueOf(rs.getString("estado")));
-                prestamos.add(prestamo);
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            Conexion.close(rs);
-            Conexion.close(stmt);
-            Conexion.close(conn);
-        }
-        return prestamos;
-    }
-
-    /**
-     * Cuenta los préstamos activos (Pendiente o En_Curso) de un usuario
-     */
-    public int contarPrestamosActivosPorUsuario(int idUsuario) {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        int count = 0;
         
         try {
             conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_COUNT_ACTIVE_BY_USER);
-            stmt.setInt(1, idUsuario);
+            stmt = conn.prepareStatement(SQL_VALIDAR_PUEDE_SOLICITAR);
+            stmt.setInt(1, idUsuario); // Para contar préstamos activos
+            stmt.setInt(2, idUsuario); // Para verificar retrasos
+            stmt.setInt(3, idUsuario); // Para verificar mora pendiente
             rs = stmt.executeQuery();
             
             if (rs.next()) {
-                count = rs.getInt(1);
+                int prestamosActivos = rs.getInt("prestamos_activos");
+                int countRetraso = rs.getInt("tiene_retraso");
+                int countMora = rs.getInt("tiene_mora");
+                return new ValidacionSolicitud(prestamosActivos, countRetraso > 0, countMora > 0);
             }
         } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -363,21 +315,70 @@ public class PrestamoModel {
             Conexion.close(stmt);
             Conexion.close(conn);
         }
-        return count;
+        
+        return new ValidacionSolicitud(0, false, false);
     }
 
     /**
-     * Obtiene todos los préstamos con mora pendiente
+     * Filtra préstamos con información completa usando query dinámica
+     * Similar a selectPrestamosDetalladoFiltrado de la implementación anterior
+     * 
+     * @param estado Estado del préstamo (null o vacío para todos)
+     * @param tipoMaterial Tipo de material (null o vacío para todos)
+     * @param conMora true para mostrar solo préstamos con mora
+     * @return Lista de préstamos filtrados con información de usuario y material
      */
-    public List<Prestamo> selectPrestamosConMora() {
+    public List<Prestamo> selectPrestamosFiltrados(String estado, String tipoMaterial, boolean conMora) {
         List<Prestamo> prestamos = new ArrayList<>();
         Connection conn = null;
         PreparedStatement stmt = null;
         ResultSet rs = null;
         
+        // Construir query dinámicamente según filtros
+        StringBuilder sql = new StringBuilder(SQL_SELECT_FILTRADO_BASE);
+        
+        boolean hayFiltros = false;
+        
+        // Filtro por tipo de material
+        if (tipoMaterial != null && !tipoMaterial.isEmpty() && !tipoMaterial.equals("Todos")) {
+            sql.append("WHERE m.tipo_material = ? ");
+            hayFiltros = true;
+        }
+        
+        // Filtro por estado
+        if (estado != null && !estado.isEmpty() && !estado.equals("Todos")) {
+            if (hayFiltros) {
+                sql.append("AND p.estado = ? ");
+            } else {
+                sql.append("WHERE p.estado = ? ");
+                hayFiltros = true;
+            }
+        }
+        
+        // Filtro por mora
+        if (conMora) {
+            if (hayFiltros) {
+                sql.append("AND (p.mora_total > 0 OR (p.estado = 'En_Curso' AND p.fecha_estimada < CURDATE())) ");
+            } else {
+                sql.append("WHERE (p.mora_total > 0 OR (p.estado = 'En_Curso' AND p.fecha_estimada < CURDATE())) ");
+            }
+        }
+        
+        sql.append("ORDER BY p.id_prestamo DESC");
+        
         try {
             conn = Conexion.getConexion();
-            stmt = conn.prepareStatement(SQL_SELECT_WITH_MORA);
+            stmt = conn.prepareStatement(sql.toString());
+            
+            // Establecer parámetros según filtros activos
+            int paramIndex = 1;
+            if (tipoMaterial != null && !tipoMaterial.isEmpty() && !tipoMaterial.equals("Todos")) {
+                stmt.setString(paramIndex++, tipoMaterial);
+            }
+            if (estado != null && !estado.isEmpty() && !estado.equals("Todos")) {
+                stmt.setString(paramIndex, estado);
+            }
+            
             rs = stmt.executeQuery();
             
             while (rs.next()) {
@@ -391,6 +392,12 @@ public class PrestamoModel {
                 prestamo.setFechaDevolucion(rs.getDate("fecha_devolucion"));
                 prestamo.setMoraTotal(rs.getBigDecimal("mora_total"));
                 prestamo.setEstado(Estado.valueOf(rs.getString("estado")));
+                
+                // Campos adicionales del JOIN
+                prestamo.setNombreUsuario(rs.getString("nombre_usuario"));
+                prestamo.setTituloMaterial(rs.getString("titulo_material"));
+                prestamo.setTipoMaterial(rs.getString("tipo_material"));
+                
                 prestamos.add(prestamo);
             }
         } catch (SQLException | ClassNotFoundException e) {
@@ -400,6 +407,7 @@ public class PrestamoModel {
             Conexion.close(stmt);
             Conexion.close(conn);
         }
+        
         return prestamos;
     }
     

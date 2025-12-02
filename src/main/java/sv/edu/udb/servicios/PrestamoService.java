@@ -1,5 +1,6 @@
 package sv.edu.udb.servicios;
 
+import sv.edu.udb.beans.DetallePrestamoDTO;
 import sv.edu.udb.beans.Prestamo;
 import sv.edu.udb.beans.Usuario;
 import sv.edu.udb.beans.Material;
@@ -74,8 +75,27 @@ public class PrestamoService {
                 return resultado;
             }
             
-            // Verificar límite de préstamos activos del usuario
-            int prestamosActivos = prestamoModel.contarPrestamosActivosPorUsuario(idUsuario);
+            // Validar si puede solicitar préstamos (en una sola consulta SQL)
+            PrestamoModel.ValidacionSolicitud validacion = prestamoModel.validarPuedeSolicitarPrestamo(idUsuario);
+            
+            // Verificar si tiene mora pendiente
+            if (validacion.isTieneMora()) {
+                resultado.put("success", false);
+                resultado.put("mensaje", "Tiene mora pendiente. " +
+                    "Debe pagar la mora antes de solicitar nuevos préstamos.");
+                return resultado;
+            }
+            
+            // Verificar si tiene devoluciones con retraso
+            if (validacion.isTieneRetraso()) {
+                resultado.put("success", false);
+                resultado.put("mensaje", "Tiene préstamos con fecha de devolución vencida. " +
+                    "Debe devolver los materiales atrasados antes de solicitar nuevos préstamos.");
+                return resultado;
+            }
+            
+            // Verificar límite de préstamos activos
+            int prestamosActivos = validacion.getPrestamosActivos();
             int limiteMaximo = obtenerLimitePrestamos(usuario.getTipoUsuario());
             
             if (prestamosActivos >= limiteMaximo) {
@@ -159,18 +179,20 @@ public class PrestamoService {
                 return resultado;
             }
             
-            // Validar fecha de devolución
-            LocalDate fechaPrestamo = prestamo.getFechaPrestamo().toLocalDate();
+            // Establecer fecha de préstamo actual
+            LocalDate fechaActual = LocalDate.now();
+            prestamo.setFechaPrestamo(Date.valueOf(fechaActual));
             
+            // Validar fecha de devolución
             if (fechaEstimadaDevolucion == null) {
-                // Si no se proporciona fecha, usar default (15 días)
-                fechaEstimadaDevolucion = fechaPrestamo.plusDays(DIAS_PRESTAMO_DEFAULT);
+                // Si no se proporciona fecha, usar default (5 días desde hoy)
+                fechaEstimadaDevolucion = fechaActual.plusDays(5);
             }
             
-            if (fechaEstimadaDevolucion.isBefore(fechaPrestamo) || 
-                fechaEstimadaDevolucion.isEqual(fechaPrestamo)) {
+            if (fechaEstimadaDevolucion.isBefore(fechaActual) || 
+                fechaEstimadaDevolucion.isEqual(fechaActual)) {
                 resultado.put("success", false);
-                resultado.put("mensaje", "La fecha de devolución debe ser posterior a la fecha de préstamo");
+                resultado.put("mensaje", "La fecha de devolución debe ser posterior a la fecha actual");
                 return resultado;
             }
             
@@ -413,18 +435,23 @@ public class PrestamoService {
                 return resultado;
             }
             
-            // Contar préstamos activos
-            int prestamosActivos = prestamoModel.contarPrestamosActivosPorUsuario(idUsuario);
+            // Validar usando la consulta optimizada
+            PrestamoModel.ValidacionSolicitud validacion = prestamoModel.validarPuedeSolicitarPrestamo(idUsuario);
+            int prestamosActivos = validacion.getPrestamosActivos();
             int limiteMaximo = obtenerLimitePrestamos(usuario.getTipoUsuario());
             
-            boolean puedeSolicitar = prestamosActivos < limiteMaximo;
+            boolean puedeSolicitar = !validacion.isTieneMora() && !validacion.isTieneRetraso() && prestamosActivos < limiteMaximo;
             
             resultado.put("puedeSolicitar", puedeSolicitar);
             resultado.put("prestamosActivos", prestamosActivos);
             resultado.put("limiteMaximo", limiteMaximo);
             resultado.put("tipoUsuario", usuario.getTipoUsuario().name());
             
-            if (!puedeSolicitar) {
+            if (validacion.isTieneMora()) {
+                resultado.put("mensaje", "Tiene mora pendiente. Debe pagar antes de solicitar préstamos.");
+            } else if (validacion.isTieneRetraso()) {
+                resultado.put("mensaje", "Tiene préstamos con fecha de devolución vencida");
+            } else if (!puedeSolicitar) {
                 resultado.put("mensaje", "Ha alcanzado el límite de " + limiteMaximo + 
                     " préstamos activos");
             }
@@ -446,33 +473,37 @@ public class PrestamoService {
      * IDEAL PARA: Mostrar antes de aprobar, denegar o devolver un préstamo
      * 
      * @param idPrestamo ID del préstamo a revisar
-     * @return Map con toda la información del préstamo
+     * @return DetallePrestamoDTO con toda la información del préstamo
      */
-    public Map<String, Object> obtenerDetallePrestamo(int idPrestamo) {
-        Map<String, Object> detalle = new HashMap<>();
+    public DetallePrestamoDTO obtenerDetallePrestamo(int idPrestamo) {
+        DetallePrestamoDTO detalle = new DetallePrestamoDTO();
         
         try {
             // 1. Obtener préstamo
             Prestamo prestamo = prestamoModel.select(idPrestamo);
             
             if (prestamo == null) {
-                detalle.put("success", false);
-                detalle.put("mensaje", "Préstamo no encontrado");
-                return detalle;
+                return null;
             }
+            
+            detalle.setPrestamo(prestamo);
             
             // 2. Obtener usuario
             Usuario usuario = usuarioModel.obtenerPorId(prestamo.getIdUsuario());
+            detalle.setUsuario(usuario);
             
             // 3. Obtener material
             Material material = materialModel.obtenerPorId(prestamo.getIdMaterial());
+            detalle.setMaterial(material);
             
             // 4. Obtener tarifa de mora
             Mora tarifaMora = moraModel.obtenerPorId(prestamo.getIdMora());
+            detalle.setTarifa(tarifaMora);
             
-            // 5. Calcular días de retraso y mora actual (si el préstamo está en curso)
+            // 5. Calcular días de retraso y mora actual
             int diasRetraso = 0;
             BigDecimal moraCalculada = BigDecimal.ZERO;
+            BigDecimal moraOriginal = BigDecimal.ZERO;
             boolean tieneRetraso = false;
             
             if (prestamo.getEstado() == Prestamo.Estado.En_Curso && prestamo.getFechaEstimada() != null) {
@@ -486,12 +517,11 @@ public class PrestamoService {
                     if (tarifaMora != null) {
                         moraCalculada = tarifaMora.getTarifaDiaria()
                             .multiply(BigDecimal.valueOf(diasRetraso));
+                        moraOriginal = moraCalculada; // En curso, la original es la misma
                     }
                 }
             } else if (prestamo.getEstado() == Prestamo.Estado.Devuelto) {
-                // Si ya está devuelto, mostrar la mora que se cobró
-                moraCalculada = prestamo.getMoraTotal() != null ? prestamo.getMoraTotal() : BigDecimal.ZERO;
-                
+                // Si ya está devuelto, calcular la mora original y la actual
                 if (prestamo.getFechaDevolucion() != null && prestamo.getFechaEstimada() != null) {
                     LocalDate fechaDevolucion = prestamo.getFechaDevolucion().toLocalDate();
                     LocalDate fechaEstimada = prestamo.getFechaEstimada().toLocalDate();
@@ -499,104 +529,57 @@ public class PrestamoService {
                     if (fechaDevolucion.isAfter(fechaEstimada)) {
                         diasRetraso = (int) ChronoUnit.DAYS.between(fechaEstimada, fechaDevolucion);
                         tieneRetraso = true;
+                        
+                        // Calcular la mora original basada en los días de retraso
+                        if (tarifaMora != null) {
+                            moraOriginal = tarifaMora.getTarifaDiaria()
+                                .multiply(BigDecimal.valueOf(diasRetraso));
+                        }
                     }
                 }
+                
+                // La mora actual es lo que está registrado en el sistema (después de abonos)
+                moraCalculada = prestamo.getMoraTotal() != null ? prestamo.getMoraTotal() : BigDecimal.ZERO;
             }
             
-            // 6. Calcular mora estimada si se aprueba hoy con 15 días
-            BigDecimal moraEstimadaSiAprueba = BigDecimal.ZERO;
-            if (prestamo.getEstado() == Prestamo.Estado.Pendiente && tarifaMora != null) {
-                // Esta es solo una referencia, el administrador puede cambiar la fecha
-                moraEstimadaSiAprueba = tarifaMora.getTarifaDiaria();
-            }
+            detalle.setDiasRetraso(diasRetraso);
+            detalle.setMoraCalculada(moraCalculada);
+            detalle.setMoraOriginal(moraOriginal);
+            detalle.setTieneRetraso(tieneRetraso);
             
-            // 7. Construir respuesta detallada
-            detalle.put("success", true);
-            
-            // Información del préstamo
-            detalle.put("prestamo", prestamo);
-            detalle.put("idPrestamo", prestamo.getIdPrestamo());
-            detalle.put("estado", prestamo.getEstado().name());
-            detalle.put("fechaPrestamo", prestamo.getFechaPrestamo());
-            detalle.put("fechaEstimada", prestamo.getFechaEstimada());
-            detalle.put("fechaDevolucion", prestamo.getFechaDevolucion());
-            detalle.put("moraTotal", prestamo.getMoraTotal() != null ? prestamo.getMoraTotal() : BigDecimal.ZERO);
-            
-            // Información del usuario
+            // 6. Información adicional del usuario
             if (usuario != null) {
-                detalle.put("usuario", usuario);
-                detalle.put("nombreUsuario", usuario.getNombre());
-                detalle.put("emailUsuario", usuario.getCorreo());
-                detalle.put("tipoUsuario", usuario.getTipoUsuario().name());
-                
-                // Contar préstamos activos del usuario
-                int prestamosActivos = prestamoModel.contarPrestamosActivosPorUsuario(usuario.getIdUsuario());
+                PrestamoModel.ValidacionSolicitud validacion = prestamoModel.validarPuedeSolicitarPrestamo(usuario.getIdUsuario());
+                int prestamosActivos = validacion.getPrestamosActivos();
                 int limiteMaximo = obtenerLimitePrestamos(usuario.getTipoUsuario());
-                detalle.put("prestamosActivosUsuario", prestamosActivos);
-                detalle.put("limiteMaximoUsuario", limiteMaximo);
+                detalle.setPrestamosActivosUsuario(prestamosActivos);
+                detalle.setLimiteMaximoUsuario(limiteMaximo);
             }
             
-            // Información del material
-            if (material != null) {
-                detalle.put("material", material);
-                detalle.put("tituloMaterial", material.getTitulo());
-                detalle.put("tipoMaterial", material.getTipoMaterial().name());
-                detalle.put("ubicacionMaterial", material.getUbicacion());
-                detalle.put("cantidadDisponible", material.getCantidadDisponible());
-            }
-            
-            // Información de la tarifa de mora
-            if (tarifaMora != null) {
-                detalle.put("tarifaMora", tarifaMora);
-                detalle.put("tarifaDiaria", tarifaMora.getTarifaDiaria());
-                detalle.put("anioTarifa", tarifaMora.getAnioAplicable());
-                detalle.put("moraEstimadaPorDia", tarifaMora.getTarifaDiaria());
-            }
-            
-            // Cálculos de retraso y mora
-            detalle.put("diasRetraso", diasRetraso);
-            detalle.put("moraCalculada", moraCalculada);
-            detalle.put("tieneRetraso", tieneRetraso);
-            
-            // Información adicional según el estado
+            // 7. Determinar permisos de acciones según el estado
             if (prestamo.getEstado() == Prestamo.Estado.Pendiente) {
-                detalle.put("puedeAprobar", true);
-                detalle.put("puedeDenegar", true);
-                detalle.put("puedeDevolver", false);
-                detalle.put("moraEstimadaSiAprueba", moraEstimadaSiAprueba);
-                detalle.put("diasPrestamoDefault", DIAS_PRESTAMO_DEFAULT);
+                detalle.setPuedeAprobar(true);
+                detalle.setPuedeDenegar(true);
+                detalle.setPuedeDevolver(false);
+                detalle.setDiasPrestamoDefault(DIAS_PRESTAMO_DEFAULT);
             } else if (prestamo.getEstado() == Prestamo.Estado.En_Curso) {
-                detalle.put("puedeAprobar", false);
-                detalle.put("puedeDenegar", false);
-                detalle.put("puedeDevolver", true);
-                
-                // Calcular mora si se devuelve hoy
-                if (tarifaMora != null && tieneRetraso) {
-                    detalle.put("moraAlDevolver", moraCalculada);
-                } else {
-                    detalle.put("moraAlDevolver", BigDecimal.ZERO);
-                }
-            } else if (prestamo.getEstado() == Prestamo.Estado.Devuelto) {
-                detalle.put("puedeAprobar", false);
-                detalle.put("puedeDenegar", false);
-                detalle.put("puedeDevolver", false);
-                detalle.put("yaDevuelto", true);
-            } else if (prestamo.getEstado() == Prestamo.Estado.Denegado) {
-                detalle.put("puedeAprobar", false);
-                detalle.put("puedeDenegar", false);
-                detalle.put("puedeDevolver", false);
-                detalle.put("yaDenegado", true);
+                detalle.setPuedeAprobar(false);
+                detalle.setPuedeDenegar(false);
+                detalle.setPuedeDevolver(true);
+            } else {
+                // Devuelto o Denegado
+                detalle.setPuedeAprobar(false);
+                detalle.setPuedeDenegar(false);
+                detalle.setPuedeDevolver(false);
             }
             
             // Puede abonar mora si hay mora pendiente
             BigDecimal moraPendiente = prestamo.getMoraTotal() != null ? prestamo.getMoraTotal() : BigDecimal.ZERO;
-            detalle.put("puedeAbonarMora", moraPendiente.compareTo(BigDecimal.ZERO) > 0);
-            detalle.put("moraPendiente", moraPendiente);
+            detalle.setPuedeAbonarMora(moraPendiente.compareTo(BigDecimal.ZERO) > 0);
             
         } catch (Exception e) {
-            detalle.put("success", false);
-            detalle.put("mensaje", "Error al obtener detalle del préstamo: " + e.getMessage());
             e.printStackTrace();
+            return null;
         }
         
         return detalle;

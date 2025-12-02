@@ -125,6 +125,11 @@
                                             <option value="Otro_Documento" ${filtroTipoMaterial == 'Otro_Documento' ? 'selected' : ''}>Otro Documento</option>
                                         </select>
                                     </div>
+                                    <div class="form-group" style="margin-left: 10px;">
+                                        <label class="checkbox-inline">
+                                            <input type="checkbox" name="conMora" value="true" ${conMora ? 'checked' : ''}> Solo con mora
+                                        </label>
+                                    </div>
                                     <button type="submit" class="btn btn-primary" style="margin-left: 10px;">
                                         <span class="glyphicon glyphicon-filter"></span> Filtrar
                                     </button>
@@ -197,27 +202,10 @@
                                             </td>
                                             <c:if test="${esAdmin}">
                                                 <td>
-                                                    <!-- Botones para administrador -->
-                                                    <c:choose>
-                                                        <c:when test="${prestamo.estado == 'Pendiente'}">
-                                                            <button class="btn btn-success btn-xs" onclick="aprobarPrestamo(${prestamo.idPrestamo})" title="Aprobar">
-                                                                <span class="glyphicon glyphicon-ok"></span>
-                                                            </button>
-                                                            <button class="btn btn-danger btn-xs" onclick="denegarPrestamo(${prestamo.idPrestamo})" title="Denegar">
-                                                                <span class="glyphicon glyphicon-remove"></span>
-                                                            </button>
-                                                        </c:when>
-                                                        <c:when test="${prestamo.estado == 'En_Curso'}">
-                                                            <button class="btn btn-primary btn-xs" onclick="devolverPrestamo(${prestamo.idPrestamo})" title="Registrar Devolución">
-                                                                <span class="glyphicon glyphicon-share-alt"></span>
-                                                            </button>
-                                                        </c:when>
-                                                    </c:choose>
-                                                    <c:if test="${prestamo.moraTotal > 0}">
-                                                        <button class="btn btn-warning btn-xs" onclick="abonarMora(${prestamo.idPrestamo}, ${prestamo.moraTotal})" title="Abonar Mora">
-                                                            <span class="glyphicon glyphicon-usd"></span>
-                                                        </button>
-                                                    </c:if>
+                                                    <a href="${pageContext.request.contextPath}/prestamos.do?op=detalle&idPrestamo=${prestamo.idPrestamo}" 
+                                                       class="btn btn-info btn-xs" title="Ver Detalle">
+                                                        <span class="glyphicon glyphicon-eye-open"></span> Ver Detalle
+                                                    </a>
                                                 </td>
                                             </c:if>
                                         </tr>
