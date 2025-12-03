@@ -5,6 +5,18 @@ import org.mindrot.jbcrypt.BCrypt;
 
 public class Usuario implements Serializable {
     private static final long serialVersionUID = 1L;
+
+    public void settipoUsario(String parameter) {
+    }
+
+    public void setcorreo(String parameter) {
+    }
+
+    public void setUsuario(Usuario usuario) {
+    }
+
+    public void settipoUsuario(String tipoUsuario) {
+    }
     
     public enum TipoUsuario {
         Encargado,
@@ -28,12 +40,12 @@ public class Usuario implements Serializable {
         this.tipoUsuario = tipoUsuario;
     }
 
-    // Método para encriptar la clave
+  
     public String encriptarPass(String passPlano) {
         return BCrypt.hashpw(passPlano, BCrypt.gensalt());
     }
 
-    // Método para verificar el password
+   
     public boolean verificarPass(String passPlano) {
         return BCrypt.checkpw(passPlano, this.passwordHash);
     }

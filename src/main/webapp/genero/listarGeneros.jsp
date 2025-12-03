@@ -32,7 +32,7 @@
                     </thead>
                     <tbody>
                  
-                        <c:forEach items="${requestScope.listaGeneros}" var="genero">
+                        <c:forEach items="${requestScope.listaGenero}" var="genero">
                          <tr>
                 
                             <td>${genero.idGenero}</td>

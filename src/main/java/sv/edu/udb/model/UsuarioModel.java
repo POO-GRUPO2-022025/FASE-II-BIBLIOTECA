@@ -1,5 +1,6 @@
 package sv.edu.udb.model;
 
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,17 +13,21 @@ import sv.edu.udb.beans.Usuario.TipoUsuario;
 
 public class UsuarioModel {
     
-    private static final String SQL_INSERT = "INSERT INTO usuarios(nombre, correo, password, tipo_usuario) VALUES(?,?,?,?)";
-    private static final String SQL_UPDATE = "UPDATE usuarios SET nombre=?, correo=?, tipo_usuario=? WHERE id_usuario=?";
-    private static final String SQL_UPDATE_PASSWORD = "UPDATE usuarios SET password=? WHERE id_usuario=?";
-    private static final String SQL_DELETE = "DELETE FROM usuarios WHERE id_usuario=?";
-    private static final String SQL_SELECT = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuarios WHERE id_usuario=?";
-    private static final String SQL_SELECT_ALL = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuarios ORDER BY id_usuario";
-    private static final String SQL_SELECT_BY_EMAIL = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuarios WHERE correo=?";
+   
 
-    /**
-     * Inserta un nuevo usuario
-     */
+private static final String SQL_INSERT = "INSERT INTO usuario(nombre, correo, password, tipo_usuario) VALUES(?,?,?,?)";
+private static final String SQL_UPDATE = "UPDATE usuario SET nombre=?, correo=?, tipo_usuario=? WHERE id_usuario=?";
+private static final String SQL_UPDATE_PASSWORD = "UPDATE usuario SET password=? WHERE id_usuario=?";
+private static final String SQL_DELETE = "DELETE FROM usuario WHERE id_usuario=?";
+private static final String SQL_SELECT = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuario WHERE id_usuario=?";
+private static final String SQL_SELECT_ALL = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuario ORDER BY id_usuario";
+private static final String SQL_SELECT_BY_EMAIL = "SELECT id_usuario, nombre, correo, password, tipo_usuario FROM usuario WHERE correo=?";
+
+ 
+
+
+
+
     public int insertar(Usuario usuario) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -44,9 +49,8 @@ public class UsuarioModel {
         return rows;
     }
 
-    /**
-     * Actualiza un usuario (sin cambiar la contraseña)
-     */
+   
+   
     public int actualizar(Usuario usuario) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -68,9 +72,7 @@ public class UsuarioModel {
         return rows;
     }
 
-    /**
-     * Actualiza la contraseña de un usuario
-     */
+    
     public int actualizarPassword(int idUsuario, String nuevoPassword) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -91,9 +93,7 @@ public class UsuarioModel {
         return rows;
     }
 
-    /**
-     * Elimina un usuario
-     */
+   
     public int eliminar(int idUsuario) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -112,9 +112,7 @@ public class UsuarioModel {
         return rows;
     }
 
-    /**
-     * Obtiene un usuario por su ID
-     */
+  
     public Usuario obtenerPorId(int idUsuario) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -130,11 +128,8 @@ public class UsuarioModel {
                 usuario.setIdUsuario(rs.getInt("id_usuario"));
                 usuario.setNombre(rs.getString("nombre"));
                 usuario.setCorreo(rs.getString("correo"));
-                // No se encripta porque ya viene encriptado de la BD
-                usuario = new Usuario();
-                usuario.setIdUsuario(rs.getInt("id_usuario"));
-                usuario.setNombre(rs.getString("nombre"));
-                usuario.setCorreo(rs.getString("correo"));
+               
+             
                 usuario.setTipoUsuario(TipoUsuario.valueOf(rs.getString("tipo_usuario")));
             }
         } catch (SQLException | ClassNotFoundException e) {
@@ -147,9 +142,7 @@ public class UsuarioModel {
         return usuario;
     }
 
-    /**
-     * Obtiene un usuario por su correo electrónico
-     */
+    
     public Usuario obtenerPorCorreo(String correo) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -177,9 +170,7 @@ public class UsuarioModel {
         return usuario;
     }
 
-    /**
-     * Obtiene todos los usuarios
-     */
+ 
     public List<Usuario> listarTodos() {
         List<Usuario> usuarios = new ArrayList<>();
         Connection conn = null;
@@ -208,9 +199,6 @@ public class UsuarioModel {
         return usuarios;
     }
 
-    /**
-     * Valida las credenciales de un usuario
-     */
     public Usuario validarCredenciales(String correo, String password) {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -226,7 +214,6 @@ public class UsuarioModel {
                 Usuario temp = new Usuario();
                 temp.setPassword(password);
                 
-                // Verificar si el password ingresado coincide con el hash
                 if (org.mindrot.jbcrypt.BCrypt.checkpw(password, passwordHash)) {
                     usuario = new Usuario();
                     usuario.setIdUsuario(rs.getInt("id_usuario"));

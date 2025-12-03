@@ -6,13 +6,13 @@ USE
 biblioteca_db;
 
 CREATE TABLE usuario
-    id_usuario   INT AUTO_INCREMENT PRIMARY KEY,
-    nombre       VARCHAR(100)        NOT NULL,
+(
+    id_usuario    INT AUTO_INCREMENT PRIMARY KEY,
+    nombre        VARCHAR(100)        NOT NULL,
     tipo_usuario ENUM('Encargado', 'Profesor', 'Alumno') NOT NULL,
-    correo       VARCHAR(100) UNIQUE NOT NULL,
-    password     VARCHAR(255)        NOT NULL
+    correo        VARCHAR(100) UNIQUE NOT NULL,
+    password      VARCHAR(255)        NOT NULL
 );
-
 
 CREATE TABLE materiales
 (
